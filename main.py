@@ -1,6 +1,7 @@
 import pygame
 import sys
 import random
+import time
 
 pygame.init()
 
@@ -50,6 +51,13 @@ class Snake:
     def collides_with(self, obj):
         return self.positions[0] == obj.position
 
+    def collides_with_self(self):
+        return self.positions[0] in self.positions[1:]
+
+    def collides_with_boundaries(self):
+        head_x, head_y = self.positions[0]
+        return head_x < 0 or head_x >= GRID_WIDTH or head_y < 0 or head_y >= GRID_HEIGHT
+
 class Food:
     def __init__(self):
         self.position = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
@@ -74,6 +82,14 @@ def main():
         score_text = font.render(f'Score: {score}', True, WHITE)
         surface.blit(score_text, (10, 10))
 
+    def game_over(surface):
+        game_over_text = font.render('Game Over', True, RED)
+        surface.blit(game_over_text, (SCREEN_WIDTH // 2 - game_over_text.get_width() // 2, SCREEN_HEIGHT // 2 - game_over_text.get_height() // 2))
+        pygame.display.flip()
+        time.sleep(2)
+        pygame.quit()
+        sys.exit()
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -96,6 +112,9 @@ def main():
             food = Food()
             score += 1
 
+        if snake.collides_with_self() or snake.collides_with_boundaries():
+            game_over(screen)
+
         screen.fill(BLACK)
         snake.draw(screen)
         food.draw(screen)
@@ -106,3 +125,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+_____
+
+Collision and gam over
