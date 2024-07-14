@@ -1,6 +1,7 @@
 import pygame
 import sys
 import time
+import random
 
 pygame.init()
 
@@ -18,12 +19,16 @@ class Snake:
     def __init__(self):
         self.positions = [(GRID_WIDTH // 2, GRID_HEIGHT // 2)]
         self.direction = (1, 0)
+        self.grow = False
 
     def update(self):
-
         head_x, head_y = self.positions[0]
         new_head = (head_x + self.direction[0], head_y + self.direction[1])
-        self.positions = [new_head] + self.positions[:-1]
+        if self.grow:
+            self.positions = [new_head] + self.positions
+            self.grow = False
+        else:
+            self.positions = [new_head] + self.positions[:-1]
 
     def change_direction(self, direction):
         if direction == 'up' and self.direction != (0, 1):
@@ -40,6 +45,20 @@ class Snake:
             rect = pygame.Rect(pos[0] * GRID_SIZE, pos[1] * GRID_SIZE, GRID_SIZE, GRID_SIZE)
             pygame.draw.rect(surface, WHITE, rect)
 
+    def grow_snake(self):
+        self.grow = True
+
+    def collides_with(self, obj):
+        return self.positions[0] == obj.position
+
+class Food:
+    def __init__(self):
+        self.position = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
+
+    def draw(self, surface):
+        rect = pygame.Rect(self.position[0] * GRID_SIZE, self.position[1] * GRID_SIZE, GRID_SIZE, GRID_SIZE)
+        pygame.draw.rect(surface, RED, rect)
+
 def main():
 
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -48,6 +67,7 @@ def main():
     clock = pygame.time.Clock()
 
     snake = Snake()
+    food = Food()
 
     while True:
         for event in pygame.event.get():
@@ -66,8 +86,13 @@ def main():
 
         snake.update()
 
+        if snake.collides_with(food):
+            snake.grow_snake()
+            food = Food()
+
         screen.fill(BLACK)
         snake.draw(screen)
+        food.draw(screen)
         pygame.display.flip()
 
         clock.tick(10)
