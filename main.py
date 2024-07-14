@@ -48,9 +48,12 @@ class Snake:
             self.direction = (1, 0)
 
     def draw(self, surface):
-        for pos in self.positions:
+        for i, pos in enumerate(self.positions):
             rect = pygame.Rect(pos[0] * GRID_SIZE, pos[1] * GRID_SIZE, GRID_SIZE, GRID_SIZE)
-            surface.blit(SNAKE_IMAGE, rect)
+            if i == 0:
+                surface.blit(SNAKE_IMAGE, rect)
+            else:
+                pygame.draw.rect(surface, GREEN, rect)
 
     def grow_snake(self):
         self.grow = True
@@ -78,11 +81,11 @@ def main():
     pygame.display.set_caption('Snake Game')
 
     clock = pygame.time.Clock()
-    font = pygame.font.SysFont('Arial', 36, bold=True)
+    font = pygame.font.SysFont('Arial', 24, bold=True)
 
     def draw_score(surface, score):
         score_text = font.render(f'Score: {score}', True, WHITE)
-        surface.blit(score_text, (SCREEN_WIDTH - 120, 10))
+        surface.blit(score_text, (10, 10))
 
     def game_over(surface):
         game_over_text = font.render('Game Over', True, RED)
@@ -133,7 +136,8 @@ def main():
             draw_score(screen, score)
             pygame.display.flip()
 
-        clock.tick(10)
+        clock.tick(10)a
 
 if __name__ == '__main__':
     main()
+
