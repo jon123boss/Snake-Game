@@ -1,6 +1,5 @@
 import pygame
 import sys
-import time
 import random
 
 pygame.init()
@@ -65,9 +64,15 @@ def main():
     pygame.display.set_caption('Snake Game')
 
     clock = pygame.time.Clock()
+    font = pygame.font.SysFont(None, 36)
 
     snake = Snake()
     food = Food()
+    score = 0
+
+    def draw_score(surface, score):
+        score_text = font.render(f'Score: {score}', True, WHITE)
+        surface.blit(score_text, (10, 10))
 
     while True:
         for event in pygame.event.get():
@@ -89,10 +94,12 @@ def main():
         if snake.collides_with(food):
             snake.grow_snake()
             food = Food()
+            score += 1
 
         screen.fill(BLACK)
         snake.draw(screen)
         food.draw(screen)
+        draw_score(screen, score)
         pygame.display.flip()
 
         clock.tick(10)
