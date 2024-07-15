@@ -65,7 +65,10 @@ class Snake:
 
 class Food:
     def __init__(self):
-        self.position = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
+        self.position = self.randomize_position()
+
+    def randomize_position(self):
+        return (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
 
     def draw(self, surface):
         surface.blit(FOOD_IMAGE, (self.position[0] * GRID_SIZE, self.position[1] * GRID_SIZE))
@@ -85,7 +88,9 @@ def draw_menu(surface, font):
     surface.blit(start_text, (SCREEN_WIDTH // 2 - start_text.get_width() // 2, SCREEN_HEIGHT // 2))
     surface.blit(quit_text, (SCREEN_WIDTH // 2 - quit_text.get_width() // 2, SCREEN_HEIGHT // 2 + 50))
 
-def handle_playing_state(surface, clock, snake, food, score):
+def handle_playing_state(surface, clock, snake, food, score, level):
+    snake_speed = 8 + level * 2
+
     snake.update()
 
     if snake.collides_with(food):
@@ -93,15 +98,20 @@ def handle_playing_state(surface, clock, snake, food, score):
         food = Food()
         score += 1
 
+        if score >= 10 + level * 5:
+            level += 1
+            if level >= len(LEVELS):
+                level = len(LEVELS) - 1
+
     if snake.collides_with_self() or snake.collides_with_boundaries():
-        return False, score
+        return False, score, level
 
     surface.blit(BACKGROUND_IMAGE, (0, 0))
     snake.draw(surface)
     food.draw(surface)
     draw_score(surface, score)
 
-    return True, score
+    return True, score, level
 
 def handle_game_over(surface, font, score):
     surface.fill(BLACK)
@@ -125,7 +135,7 @@ def main():
     clock = pygame.time.Clock()
     font = pygame.font.SysFont('Arial', 24, bold=True)
 
-    current_state = 0
+    level = 0
     snake, food, score = None, None, 0
 
     while True:
@@ -134,14 +144,14 @@ def main():
                 pygame.quit()
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
-                if current_state == 0:
-                    if event.key == pygame.K_RETURN:
-                        current_state = 1
-                        snake, food, score = restart_game()
-                    elif event.key == pygame.K_ESCAPE:
-                        pygame.quit()
-                        sys.exit()
-                elif current_state == 1:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+                elif event.key == pygame.K_RETURN and level == 0:
+                    snake, food, score = restart_game()
+                    level = 1
+
+                if level > 0:
                     if event.key == pygame.K_UP:
                         snake.change_direction('up')
                     elif event.key == pygame.K_DOWN:
@@ -150,22 +160,20 @@ def main():
                         snake.change_direction('left')
                     elif event.key == pygame.K_RIGHT:
                         snake.change_direction('right')
-                elif current_state == 2:
-                    if event.key == pygame.K_RETURN:
-                        current_state = 1
-                        snake, food, score = restart_game()
 
-        if current_state == 0:
-            draw_menu(screen, font)
-        elif current_state == 1:
-            game_over, score = handle_playing_state(screen, clock, snake, food, score)
+        if level > 0:
+            game_over, score, level = handle_playing_state(screen, clock, snake, food, score, level)
             if not game_over:
-                current_state = 2
-        elif current_state == 2:
-            handle_game_over(screen, font, score)
+                handle_game_over(screen, font, score)
+                level = 0
+
+        else:
+            screen.fill(BLACK)
+            draw_menu(screen, font)
 
         pygame.display.flip()
-        clock.tick(10)
+        clock.tick(10 + level * 2)
 
 if __name__ == '__main__':
     main()
+
