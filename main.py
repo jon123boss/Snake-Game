@@ -1,6 +1,7 @@
 import pygame
 import sys
 import random
+import time
 
 pygame.init()
 
@@ -13,6 +14,8 @@ GRID_HEIGHT = SCREEN_HEIGHT // GRID_SIZE
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+YELLOW = (255, 255, 0)
 
 SNAKE_HEAD_IMAGE = pygame.Surface((GRID_SIZE, GRID_SIZE), pygame.SRCALPHA)
 pygame.draw.rect(SNAKE_HEAD_IMAGE, (0, 255, 0), (0, 0, GRID_SIZE, GRID_SIZE))
@@ -26,6 +29,10 @@ class Snake:
         self.positions = [(GRID_WIDTH // 2, GRID_HEIGHT // 2)]
         self.direction = (1, 0)
         self.grow = False
+        self.speed_boost = False
+        self.invincible = False
+        self.speed_boost_end_time = 0
+        self.invincible_end_time = 0
 
     def update(self):
         head_x, head_y = self.positions[0]
@@ -63,6 +70,21 @@ class Snake:
         head_x, head_y = self.positions[0]
         return head_x < 0 or head_x >= GRID_WIDTH or head_y < 0 or head_y >= GRID_HEIGHT
 
+    def activate_speed_boost(self):
+        self.speed_boost = True
+        self.speed_boost_end_time = time.time() + 5
+
+    def activate_invincibility(self):
+        self.invincible = True
+        self.invincible_end_time = time.time() + 5
+
+    def update_power_ups(self):
+        current_time = time.time()
+        if self.speed_boost and current_time > self.speed_boost_end_time:
+            self.speed_boost = False
+        if self.invincible and current_time > self.invincible_end_time:
+            self.invincible = False
+
 class Food:
     def __init__(self):
         self.position = self.randomize_position()
@@ -72,6 +94,33 @@ class Food:
 
     def draw(self, surface):
         surface.blit(FOOD_IMAGE, (self.position[0] * GRID_SIZE, self.position[1] * GRID_SIZE))
+
+    def respawn(self):
+        self.position = self.randomize_position()
+
+class PowerUp:
+    def __init__(self):
+        self.position = self.randomize_position()
+        self.type = random.choice(['speed', 'invincibility'])
+        self.image = pygame.Surface((GRID_SIZE, GRID_SIZE), pygame.SRCALPHA)
+        if self.type == 'speed':
+            pygame.draw.rect(self.image, BLUE, (0, 0, GRID_SIZE, GRID_SIZE))
+        elif self.type == 'invincibility':
+            pygame.draw.circle(self.image, YELLOW, (GRID_SIZE // 2, GRID_SIZE // 2), GRID_SIZE // 2)
+
+    def randomize_position(self):
+        return (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
+
+    def draw(self, surface):
+        surface.blit(self.image, (self.position[0] * GRID_SIZE, self.position[1] * GRID_SIZE))
+
+    def respawn(self):
+        self.position = self.randomize_position()
+        self.type = random.choice(['speed', 'invincibility'])
+        if self.type == 'speed':
+            pygame.draw.rect(self.image, BLUE, (0, 0, GRID_SIZE, GRID_SIZE))
+        elif self.type == 'invincibility':
+            pygame.draw.circle(self.image, YELLOW, (GRID_SIZE // 2, GRID_SIZE // 2), GRID_SIZE // 2)
 
 def draw_score(surface, score):
     font = pygame.font.SysFont('Arial', 24, bold=True)
@@ -88,27 +137,33 @@ def draw_menu(surface, font):
     surface.blit(start_text, (SCREEN_WIDTH // 2 - start_text.get_width() // 2, SCREEN_HEIGHT // 2))
     surface.blit(quit_text, (SCREEN_WIDTH // 2 - quit_text.get_width() // 2, SCREEN_HEIGHT // 2 + 50))
 
-def handle_playing_state(surface, clock, snake, food, score, level):
+def handle_playing_state(surface, clock, snake, food, power_up, score, level):
     snake_speed = 8 + level * 2
+    if snake.speed_boost:
+        snake_speed *= 2
 
     snake.update()
+    snake.update_power_ups()
 
     if snake.collides_with(food):
         snake.grow_snake()
-        food = Food()
+        food.respawn()
         score += 1
 
-        if score >= 10 + level * 5:
-            level += 1
-            if level >= len(LEVELS):
-                level = len(LEVELS) - 1
+    if snake.collides_with(power_up):
+        if power_up.type == 'speed':
+            snake.activate_speed_boost()
+        elif power_up.type == 'invincibility':
+            snake.activate_invincibility()
+        power_up.respawn()
 
-    if snake.collides_with_self() or snake.collides_with_boundaries():
+    if not snake.invincible and (snake.collides_with_self() or snake.collides_with_boundaries()):
         return False, score, level
 
     surface.blit(BACKGROUND_IMAGE, (0, 0))
     snake.draw(surface)
     food.draw(surface)
+    power_up.draw(surface)
     draw_score(surface, score)
 
     return True, score, level
@@ -126,7 +181,7 @@ def handle_game_over(surface, font, score):
     surface.blit(quit_text, (SCREEN_WIDTH // 2 - quit_text.get_width() // 2, SCREEN_HEIGHT // 2 + 100))
 
 def restart_game():
-    return Snake(), Food(), 0
+    return Snake(), Food(), PowerUp(), 0
 
 def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -136,7 +191,7 @@ def main():
     font = pygame.font.SysFont('Arial', 24, bold=True)
 
     level = 0
-    snake, food, score = None, None, 0
+    snake, food, power_up, score = None, None, None, 0
 
     while True:
         for event in pygame.event.get():
@@ -148,7 +203,7 @@ def main():
                     pygame.quit()
                     sys.exit()
                 elif event.key == pygame.K_RETURN and level == 0:
-                    snake, food, score = restart_game()
+                    snake, food, power_up, score = restart_game()
                     level = 1
 
                 if level > 0:
@@ -162,7 +217,7 @@ def main():
                         snake.change_direction('right')
 
         if level > 0:
-            game_over, score, level = handle_playing_state(screen, clock, snake, food, score, level)
+            game_over, score, level = handle_playing_state(screen, clock, snake, food, power_up, score, level)
             if not game_over:
                 handle_game_over(screen, font, score)
                 level = 0
@@ -172,8 +227,11 @@ def main():
             draw_menu(screen, font)
 
         pygame.display.flip()
-        clock.tick(10 + level * 2)
+
+        if snake is not None:
+            clock.tick(10 + level * 2 if not snake.speed_boost else 20 + level * 4)
+        else:
+            clock.tick(10)
 
 if __name__ == '__main__':
     main()
-
